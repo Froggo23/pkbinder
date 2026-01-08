@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Search, Filter, Inbox, ChevronDown, Check } from 'lucide-react';
+import { X, Search, Filter, Inbox, ChevronDown, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { mockCards } from '@/data/mockCards';
+import { searchCards } from '@/lib/api';
 
 // --- Sub-components for the Modal ---
 
@@ -25,9 +25,15 @@ const FilterButton = ({ label, icon: Icon }) => (
     </button>
 );
 
-const TypeButton = ({ type, color }) => (
+const TypeButton = ({ type, color, active, onClick }) => (
     <button
-        className="relative flex items-center justify-center w-7 h-7 rounded-lg transition-all duration-200 outline-none border border-zinc-300 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-600 focus:ring-2 focus:ring-indigo-500"
+        onClick={onClick}
+        className={cn(
+            "relative flex items-center justify-center w-7 h-7 rounded-lg transition-all duration-200 outline-none border hover:border-zinc-400 dark:hover:border-zinc-600 focus:ring-2 focus:ring-indigo-500",
+            active
+                ? "border-indigo-500 ring-2 ring-indigo-500 ring-offset-1 dark:ring-offset-zinc-900"
+                : "border-zinc-300 dark:border-zinc-700"
+        )}
         title={type}
     >
         <div className="w-5 h-5 rounded-full opacity-80" style={{ backgroundColor: color }} />
@@ -48,18 +54,105 @@ const TabButton = ({ label, active, onClick }) => (
     </button>
 );
 
+// Helper for debouncing search
+function useDebounce(value, delay) {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(value);
+        }, delay);
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [value, delay]);
+    return debouncedValue;
+}
+
 export default function AddCardModal({ isOpen, onClose, onAddCard }) {
     const [activeTab, setActiveTab] = useState('Single Cards');
     const [selectedCards, setSelectedCards] = useState([]);
 
-    // Generate more dummy cards for the grid
-    const gridCards = [...mockCards, ...mockCards, ...mockCards].map((c, i) => ({ ...c, uniqueId: `${c.id}-${i}` }));
+    // API State
+    const [query, setQuery] = useState('');
+    const [selectedType, setSelectedType] = useState(null); // New state for type
+    const [rarity, setRarity] = useState('');
+    const [sortBy, setSortBy] = useState('relevance');
+    const [setName, setSetName] = useState('');
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+
+    const debouncedQuery = useDebounce(query, 500);
+    const debouncedSetName = useDebounce(setName, 500);
+    const [cards, setCards] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    // Reset pagination when filters or tab change
+    useEffect(() => {
+        setPage(1);
+        setHasMore(true);
+        setCards([]);
+    }, [debouncedQuery, debouncedSetName, selectedType, rarity, sortBy, activeTab]);
+
+    // Fetch cards when page or filters change
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const fetch = async () => {
+            setLoading(true);
+            try {
+                const res = await searchCards(debouncedQuery, page, 30, {
+                    types: selectedType,
+                    rarity: rarity,
+                    orderBy: sortBy,
+                    setName: debouncedSetName
+                });
+
+                if (page === 1) {
+                    setCards(res.data || []);
+                } else {
+                    setCards(prev => [...prev, ...res.data]);
+                }
+
+                // Use the hasMore flag from the API
+                setHasMore(res.hasMore ?? (res.data?.length === 30));
+            } catch (error) {
+                console.error("Error fetching cards:", error);
+            }
+            setLoading(false);
+        };
+
+        fetch();
+    }, [isOpen, page, debouncedQuery, debouncedSetName, selectedType, rarity, sortBy, activeTab]);
+
+    const handleScroll = (e) => {
+        const { scrollTop, clientHeight, scrollHeight } = e.target;
+        // Load more when user is 50px from bottom, not loading, and has more data
+        if (scrollHeight - scrollTop <= clientHeight + 50 && !loading && hasMore) {
+            setPage(prev => prev + 1);
+        }
+    };
+
+    const handleTypeClick = (typeLabel) => {
+        // Toggle if already selected
+        setSelectedType(prev => prev === typeLabel ? null : typeLabel);
+    };
 
     const toggleSelectCard = (card) => {
-        if (selectedCards.find(c => c.uniqueId === card.uniqueId)) {
-            setSelectedCards(selectedCards.filter(c => c.uniqueId !== card.uniqueId));
+        // We use the API ID directly for uniqueness
+        if (selectedCards.find(c => c.id === card.id)) {
+            setSelectedCards(selectedCards.filter(c => c.id !== card.id));
         } else {
-            setSelectedCards([...selectedCards, card]);
+            // Normalize card data for our app
+            const normalizedCard = {
+                id: card.id,
+                name: card.name,
+                // Fallback or specific size
+                image: card.images.large || card.images.small,
+                set: card.set.name,
+                number: card.number,
+                rarity: card.rarity
+            };
+            setSelectedCards([...selectedCards, normalizedCard]);
         }
     };
 
@@ -68,6 +161,20 @@ export default function AddCardModal({ isOpen, onClose, onAddCard }) {
         setSelectedCards([]);
         onClose();
     };
+
+    // Mapping for colors to Type Names (simplified for Pokemon TCG)
+    const typeMap = [
+        { name: 'Fire', color: '#FF6B6B' },
+        { name: 'Water', color: '#4ECDC4' },
+        { name: 'Lightning', color: '#FFE66D' },
+        { name: 'Psychic', color: '#A18CD1' },
+        { name: 'Fighting', color: '#F79F1F' },
+        { name: 'Darkness', color: '#2C3A47' },
+        { name: 'Grass', color: '#48db48' },
+        { name: 'Colorless', color: '#dfe6e9' },
+        { name: 'Metal', color: '#b2bec3' },
+        { name: 'Dragon', color: '#fa8231' }
+    ];
 
     if (!isOpen) return null;
 
@@ -122,28 +229,84 @@ export default function AddCardModal({ isOpen, onClose, onAddCard }) {
                             <div className="flex-1 overflow-y-auto px-3 py-4 [&::-webkit-scrollbar]:hidden">
                                 <div className="flex items-center justify-between mb-3">
                                     <h3 className="text-[13px] font-medium text-zinc-800 dark:text-white">Filters</h3>
-                                    <button className="text-[10px] font-medium text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">Reset</button>
+                                    <button
+                                        onClick={() => {
+                                            setQuery('');
+                                            setSetName('');
+                                            setSelectedType(null);
+                                            setRarity('');
+                                            setSortBy('relevance');
+                                        }}
+                                        className="text-[10px] font-medium text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                                    >
+                                        Reset
+                                    </button>
                                 </div>
 
                                 <div className="space-y-4">
                                     <FilterSection label="Sort by">
-                                        <FilterButton label="Relevance" />
+                                        <div className="relative">
+                                            <select
+                                                value={sortBy}
+                                                onChange={(e) => setSortBy(e.target.value)}
+                                                className="w-full rounded-[6px] border border-slate-300 dark:border-zinc-700 bg-transparent py-2 px-3 text-[13px] font-[500] shadow-sm focus:border-indigo-400 focus:outline-none text-zinc-700 dark:text-zinc-400 appearance-none cursor-pointer"
+                                            >
+                                                <option value="relevance">Relevance</option>
+                                                <option value="name">Name (A-Z)</option>
+                                                <option value="-name">Name (Z-A)</option>
+                                                <option value="set.releaseDate">Release Date (Newest)</option>
+                                                <option value="-set.releaseDate">Release Date (Oldest)</option>
+                                                <option value="number">Card Number</option>
+                                            </select>
+                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                                        </div>
                                     </FilterSection>
 
                                     <FilterSection label="Type">
                                         <div className="flex flex-wrap gap-2">
-                                            {['#FF6B6B', '#4ECDC4', '#FFE66D', '#A18CD1', '#F79F1F', '#2C3A47'].map((color, i) => (
-                                                <TypeButton key={i} type="Type" color={color} />
+                                            {typeMap.map((t) => (
+                                                <TypeButton
+                                                    key={t.name}
+                                                    type={t.name}
+                                                    color={t.color}
+                                                    active={selectedType === t.name}
+                                                    onClick={() => handleTypeClick(t.name)}
+                                                />
                                             ))}
                                         </div>
                                     </FilterSection>
 
                                     <FilterSection label="Rarity">
-                                        <FilterButton label="All Rarities" />
+                                        <div className="relative">
+                                            <select
+                                                value={rarity}
+                                                onChange={(e) => setRarity(e.target.value)}
+                                                className="w-full rounded-[6px] border border-slate-300 dark:border-zinc-700 bg-transparent py-2 px-3 text-[13px] font-[500] shadow-sm focus:border-indigo-400 focus:outline-none text-zinc-700 dark:text-zinc-400 appearance-none cursor-pointer"
+                                            >
+                                                <option value="">All Rarities</option>
+                                                <option value="Common">Common</option>
+                                                <option value="Uncommon">Uncommon</option>
+                                                <option value="Rare">Rare</option>
+                                                <option value="Rare Holo">Rare Holo</option>
+                                                <option value="Ultra Rare">Ultra Rare</option>
+                                                <option value="Secret Rare">Secret Rare</option>
+                                                <option value="Promo">Promo</option>
+                                            </select>
+                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+                                        </div>
                                     </FilterSection>
 
-                                    <FilterSection label="Set">
-                                        <FilterButton label="All Sets" />
+                                    <FilterSection label="Set Name">
+                                        <div className="relative">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 w-3.5 h-3.5" />
+                                            <input
+                                                type="text"
+                                                value={setName}
+                                                onChange={(e) => setSetName(e.target.value)}
+                                                placeholder="e.g. 'Silver Tempest'"
+                                                className="w-full rounded-[6px] border border-slate-300 dark:border-zinc-700 bg-transparent py-2 pl-9 pr-3 text-[13px] font-[500] shadow-sm focus:border-indigo-400 focus:outline-none text-zinc-700 dark:text-zinc-400 placeholder:text-zinc-500"
+                                            />
+                                        </div>
                                     </FilterSection>
                                 </div>
                             </div>
@@ -157,44 +320,65 @@ export default function AddCardModal({ isOpen, onClose, onAddCard }) {
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 w-3.5 h-3.5" />
                                     <input
                                         type="text"
-                                        placeholder="Search Pokemon cards or artists"
-                                        className="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-transparent py-2 sm:py-3 pl-9 pr-3 text-[13px] text-zinc-800 dark:text-zinc-200 focus:border-indigo-500 focus:outline-none placeholder:text-zinc-500"
+                                        value={query}
+                                        onChange={(e) => setQuery(e.target.value)}
+                                        placeholder="Search Pokemon cards (e.g. 'Pikachu', 'Charizard')"
+                                        className="w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-transparent py-2 sm:py-3 pl-9 pr-3 text-[13px] text-zinc-800 dark:text-zinc-200 focus:border-indigo-500 focus:outline-none placeholder:text-zinc-500 transition-all"
                                     />
+                                    {loading && (
+                                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-500 w-4 h-4 animate-spin" />
+                                    )}
                                 </div>
                             </div>
 
                             {/* Grid Content */}
-                            <div className="flex-1 overflow-y-auto p-4 sm:p-6 min-h-0">
-                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                                    {gridCards.map((card) => {
-                                        const isSelected = selectedCards.find(c => c.uniqueId === card.uniqueId);
-                                        return (
-                                            <div key={card.uniqueId} className="relative group w-full flex justify-center">
-                                                <div
-                                                    className="group relative aspect-[5/7] cursor-pointer transition-transform duration-200 hover:scale-[1.02]"
-                                                    onClick={() => toggleSelectCard(card)}
-                                                >
-                                                    <img
-                                                        src={card.image}
-                                                        alt={card.name}
-                                                        className={cn(
-                                                            "w-full h-full object-contain transition-all duration-200",
-                                                            isSelected ? "opacity-60 grayscale-[0.5]" : ""
-                                                        )}
-                                                        loading="lazy"
-                                                    />
-                                                    {isSelected && (
-                                                        <div className="absolute inset-0 flex items-center justify-center bg-indigo-600/20 border-2 border-indigo-500 rounded-sm">
-                                                            <div className="bg-indigo-600 rounded-full p-1">
-                                                                <Check className="w-4 h-4 text-white" />
-                                                            </div>
+                            <div
+                                className="flex-1 overflow-y-auto p-4 sm:p-6 min-h-0"
+                                onScroll={handleScroll}
+                            >
+                                {cards.length === 0 && !loading ? (
+                                    <div className="h-full flex flex-col items-center justify-center text-zinc-400">
+                                        <p>No cards found.</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                                            {cards.map((card) => {
+                                                const isSelected = selectedCards.find(c => c.id === card.id);
+                                                return (
+                                                    <div key={card.id} className="relative group w-full flex justify-center">
+                                                        <div
+                                                            className="group relative aspect-[5/7] cursor-pointer transition-transform duration-200 hover:scale-[1.02]"
+                                                            onClick={() => toggleSelectCard(card)}
+                                                        >
+                                                            <img
+                                                                src={card.images.small}
+                                                                alt={card.name}
+                                                                className={cn(
+                                                                    "w-full h-full object-contain transition-all duration-200",
+                                                                    isSelected ? "opacity-60 grayscale-[0.5]" : ""
+                                                                )}
+                                                                loading="lazy"
+                                                            />
+                                                            {isSelected && (
+                                                                <div className="absolute inset-0 flex items-center justify-center bg-indigo-600/20 border-2 border-indigo-500 rounded-sm">
+                                                                    <div className="bg-indigo-600 rounded-full p-1">
+                                                                        <Check className="w-4 h-4 text-white" />
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    )}
-                                                </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        {loading && (
+                                            <div className="w-full flex justify-center py-4">
+                                                <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
                                             </div>
-                                        );
-                                    })}
-                                </div>
+                                        )}
+                                    </>
+                                )}
                             </div>
 
                             {/* Footer Actions */}
@@ -235,7 +419,7 @@ export default function AddCardModal({ isOpen, onClose, onAddCard }) {
                                 ) : (
                                     <div className="grid grid-cols-2 gap-2">
                                         {selectedCards.map(card => (
-                                            <div key={card.uniqueId} className="relative aspect-[5/7]">
+                                            <div key={card.id} className="relative aspect-[5/7]">
                                                 <img src={card.image} className="w-full h-full object-contain" />
                                                 <button
                                                     onClick={() => toggleSelectCard(card)}

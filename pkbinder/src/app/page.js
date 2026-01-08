@@ -55,7 +55,9 @@ const CardSlot = ({ card, onClick }) => {
 
 const BinderPage = ({ cards = [], onSlotClick }) => {
   // Fill grid to 9 slots for demo
-  const slots = [...cards, ...Array(9 - cards.length).fill(null)].slice(0, 9);
+  // Fill grid to 9 slots for demo
+  const emptySlotsCount = Math.max(0, 9 - cards.length);
+  const slots = [...cards, ...Array(emptySlotsCount).fill(null)].slice(0, 9);
 
   return (
     <div className="binder-page bg-card rounded-xl p-4 md:p-6 grid grid-cols-3 gap-3 md:gap-4 h-full">

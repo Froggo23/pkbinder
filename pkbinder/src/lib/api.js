@@ -72,15 +72,15 @@ export async function searchCards(query = '', page = 1, pageSize = 20, filters =
 
         // Normalize
         const normalizedData = fullCards.map(card => {
-            const imageUrl = card.image ? `${card.image}/low.png` : null;
-            const largeImageUrl = card.image ? `${card.image}/high.png` : null;
+            const smallImg = card.image ? `${card.image}/low.webp` : null;
+            const largeImg = card.image ? `${card.image}/high.webp` : null;
 
             return {
                 id: card.id,
                 name: card.name,
                 images: {
-                    small: imageUrl,
-                    large: largeImageUrl
+                    small: smallImg,
+                    large: largeImg
                 },
                 set: {
                     name: card.set?.name || 'Unknown'

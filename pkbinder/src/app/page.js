@@ -39,7 +39,7 @@ const CardSlot = ({ card, onClick, onDelete }) => {
             }}
             onClick={onClick}
             className={cn(
-                "aspect-[2.5/3.5] rounded-xl overflow-hidden relative group transition-all duration-300",
+                "h-full w-full rounded-xl overflow-hidden relative group transition-all duration-300",
                 !card && "card-slot-empty cursor-pointer bg-zinc-800/30",
                 !card && isHovered && "shadow-[0_0_12px_rgba(99,102,241,0.5)]"
             )}
@@ -120,7 +120,7 @@ const TitlePage = ({ title, description, onTitleChange, onDescriptionChange }) =
 
 const BinderPage = ({ slots, onSlotClick, onDeleteCard }) => {
     return (
-        <div className="binder-page bg-card rounded-xl p-6 md:p-8 grid grid-cols-3 gap-1.5 md:gap-2 h-full">
+        <div className="binder-page bg-card rounded-xl p-[10px] grid grid-cols-3 grid-rows-3 gap-[10px] h-full">
             {slots.map((card, i) => (
                 <CardSlot
                     key={i}
@@ -327,18 +327,20 @@ export default function Home() {
                 <main className="flex-1 overflow-auto p-4 md:p-8 flex justify-center items-center bg-black/50">
                     <div className="w-full max-w-7xl flex gap-6 items-center h-[90vh] relative">
                         {/* Navigation Arrow - Left (outside binder) */}
-                        {currentSpreadIndex > 0 && (
-                            <button
-                                onClick={goToPreviousSpread}
-                                className="p-3 rounded-full bg-zinc-800 hover:bg-zinc-700 transition-colors z-50"
-                            >
-                                <ChevronLeft size={24} />
-                            </button>
-                        )}
+                        <button
+                            onClick={goToPreviousSpread}
+                            disabled={currentSpreadIndex === 0}
+                            className={cn(
+                                "p-3 rounded-full bg-zinc-800 hover:bg-zinc-700 transition-colors z-50",
+                                currentSpreadIndex === 0 && "opacity-50 cursor-default hover:bg-zinc-800"
+                            )}
+                        >
+                            <ChevronLeft size={24} />
+                        </button>
 
-                        <div className="flex-1 flex gap-4 h-full relative perspective-1000">
+                        <div className="flex-1 flex justify-center gap-4 h-full relative perspective-1000">
                             {/* Left Page */}
-                            <div className="flex-1 relative z-10">
+                            <div className="flex-none w-[600px] aspect-[100/136] relative z-10">
                                 <div className="h-full">
                                     {leftPage.type === 'title' ? (
                                         <TitlePage
@@ -358,7 +360,7 @@ export default function Home() {
                             </div>
 
                             {/* Right Page */}
-                            <div className="flex-1 relative z-10">
+                            <div className="flex-none w-[600px] aspect-[100/136] relative z-10">
                                 <div className="h-full">
                                     <BinderPage
                                         slots={rightPage.data.slots}
@@ -369,24 +371,64 @@ export default function Home() {
                             </div>
                         </div>
 
-                        {/* Navigation Arrow - Right (outside binder) */}
-                        <button
-                            onClick={goToNextSpread}
-                            className="p-3 rounded-full bg-zinc-800 hover:bg-zinc-700 transition-colors z-50 text-white shadow-lg border border-zinc-700"
-                        >
-                            <ChevronRight size={24} />
-                        </button>
+                        {/* Navigation Arrow - Right OR Add Page Button */}
+                        {(() => {
+                            // Calculate total spreads needed
+                            // 1 title page + cardPages
+                            // Each spread holds 2 pages (except title is 1 page)
+                            // Spread 0: Title | Page 0
+                            // Spread 1: Page 1 | Page 2
+                            // Spread 2: Page 3 | Page 4
+                            // Last spread index calculation:
+                            // Total count = 1 (title) + cardPages.length
+                            // Max capacity per spread = 2
+                            // But title counts as 1 slot effectively in Spread 0's context?
+                            // Actually, let's use the logic defined in getRightPage:
+                            // Spread 0: Right page is cardPages[0]
+                            // Spread 1: Right page is cardPages[2]
+                            // Spread k: Right page is cardPages[2k]  <-- Wait, logic above was:
+                            // Spread 0: Right = 0
+                            // Spread 1: Right = 2
+                            // Spread 2: Right = 4
+                            // So if we are at spread k, we are showing card page 2k on the right.
+                            // If cardPages has length N.
+                            // The last separate card page index is N-1.
+                            // If the right page of the current spread (2k) is < N-1, there are more pages.
+                            // Or simpler: can we go to spread k+1?
+                            // Spread k+1 would show card page (2(k+1)-1) on left and 2(k+1) on right.
+                            // i.e. 2k+1 (left) and 2k+2 (right).
+                            // Does page 2k+1 exist? (index 2k+1 < cardPages.length)
 
-                        {/* Add Page Button - Far Right Edge */}
-                        <div className="absolute -right-20 top-1/2 -translate-y-1/2 z-50">
-                            <button
-                                onClick={handleAddPage}
-                                className="p-3 rounded-full bg-primary hover:bg-primary/90 transition-colors shadow-lg group"
-                                title="Add New Page"
-                            >
-                                <Plus size={24} className="group-hover:rotate-90 transition-transform duration-300" />
-                            </button>
-                        </div>
+                            // Let's look at next spread:
+                            // Next spread index = currentSpreadIndex + 1
+                            // Left page of next spread would be index: (currentSpreadIndex + 1) * 2 - 1
+                            // i.e. 2 * currentSpreadIndex + 1.
+                            // If this index exists in cardPages, then next spread exists.
+
+                            const nextSpreadLeftPageIndex = 2 * currentSpreadIndex + 1;
+                            const hasNextSpread = nextSpreadLeftPageIndex < cardPages.length;
+
+                            if (hasNextSpread) {
+                                return (
+                                    <button
+                                        onClick={goToNextSpread}
+                                        className="p-3 rounded-full bg-zinc-800 hover:bg-zinc-700 transition-colors z-50 text-white shadow-lg border border-zinc-700"
+                                    >
+                                        <ChevronRight size={24} />
+                                    </button>
+                                );
+                            } else {
+                                return (
+                                    <button
+                                        onClick={handleAddPage}
+                                        className="p-3 rounded-full bg-primary hover:bg-primary/90 transition-colors shadow-lg group z-50"
+                                        title="Add New Page"
+                                    >
+                                        <Plus size={24} className="group-hover:rotate-90 transition-transform duration-300" />
+                                    </button>
+                                );
+                            }
+                        })()}
 
                         {/* Page Counter - Transient */}
                         <AnimatePresence mode="wait">

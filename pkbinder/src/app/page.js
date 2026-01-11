@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Grid, Layout, Settings, Share2, Plus, Filter, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 import AddCardModal from '@/components/AddCardModal';
 
 // --- Components ---
@@ -53,7 +54,7 @@ const CardSlot = ({ card, onClick, onDelete }) => {
                     <img
                         src={card.image}
                         alt={card.name}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain p-1"
                         loading="lazy"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
@@ -295,9 +296,11 @@ export default function Home() {
                 <div className="flex items-center gap-2">
                     {/* Search removed */}
 
-                    <button className="h-9 px-4 rounded-full bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors shadow-[0_0_15px_-3px_var(--primary)]">
-                        Sign In
-                    </button>
+                    <Link href="/auth">
+                        <button className="h-9 px-4 rounded-full bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors shadow-[0_0_15px_-3px_var(--primary)]">
+                            Sign In
+                        </button>
+                    </Link>
                 </div>
             </header>
 

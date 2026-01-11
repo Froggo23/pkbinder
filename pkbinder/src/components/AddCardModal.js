@@ -343,10 +343,10 @@ export default function AddCardModal({ isOpen, onClose, onAddCard }) {
                                 ) : (
                                     <>
                                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                                            {cards.map((card) => {
+                                            {cards.map((card, index) => {
                                                 const isSelected = selectedCards.find(c => c.id === card.id);
                                                 return (
-                                                    <div key={card.id} className="relative group w-full flex justify-center">
+                                                    <div key={`${card.id}-${index}`} className="relative group w-full flex justify-center">
                                                         <div
                                                             className="group relative aspect-[5/7] cursor-pointer transition-transform duration-200 hover:scale-[1.02]"
                                                             onClick={() => toggleSelectCard(card)}

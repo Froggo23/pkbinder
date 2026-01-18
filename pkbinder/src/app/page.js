@@ -1,455 +1,302 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Grid, Layout, Settings, Share2, Plus, Filter, Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Layout, Loader2, LogOut, ChevronRight, Book } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import AddCardModal from '@/components/AddCardModal';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
-// --- Components ---
+// --- Dashboard Component ---
 
-const SidebarItem = ({ icon: Icon, label, active }) => (
-    <button className={cn(
-        "flex items-center gap-3 w-full px-3 py-2 rounded-md transition-colors text-sm font-medium",
-        active
-            ? "bg-primary/10 text-primary"
-            : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-    )}>
-        <Icon size={18} />
-        {label && <span>{label}</span>}
-    </button>
-);
+export default function Dashboard() {
+    const router = useRouter();
+    const [user, setUser] = useState(null);
+    const [binders, setBinders] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isCreating, setIsCreating] = useState(false);
+    const [showCreateModal, setShowCreateModal] = useState(false);
 
-const CardSlot = ({ card, onClick, onDelete }) => {
-    const [showDelete, setShowDelete] = useState(false);
-    const [isHovered, setIsHovered] = useState(false);
+    // Create Modal State
+    const [newBinderTitle, setNewBinderTitle] = useState('');
+    const [newBinderDesc, setNewBinderDesc] = useState('');
 
-    return (
-        <div
-            onMouseEnter={() => {
-                if (card) {
-                    setShowDelete(true);
-                } else {
-                    setIsHovered(true);
-                }
-            }}
-            onMouseLeave={() => {
-                setShowDelete(false);
-                setIsHovered(false);
-            }}
-            onClick={onClick}
-            className={cn(
-                "h-full w-full rounded-xl overflow-hidden relative group transition-all duration-300",
-                !card && "card-slot-empty cursor-pointer bg-zinc-800/30",
-                !card && isHovered && "shadow-[0_0_12px_rgba(99,102,241,0.5)]"
-            )}
-        >
-            {card ? (
-                <motion.div
-                    layoutId={`card-${card.id}`}
-                    className="w-full h-full relative"
-                    whileHover={{ scale: 1.05, zIndex: 10 }}
-                >
-                    <img
-                        src={card.image}
-                        alt={card.name}
-                        className="w-full h-full object-contain p-1"
-                        loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+    useEffect(() => {
+        const checkUser = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            const currentUser = session?.user || null;
+            setUser(currentUser);
 
-                    {/* Delete button on hover */}
-                    <AnimatePresence>
-                        {showDelete && (
-                            <motion.button
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.8 }}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onDelete();
-                                }}
-                                className="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white rounded-full p-1.5 shadow-lg z-20 transition-colors"
-                            >
-                                <X size={16} />
-                            </motion.button>
-                        )}
-                    </AnimatePresence>
-                </motion.div>
-            ) : (
-                <div className="flex items-center justify-center h-full relative">
-                    {/* Hover animation - add card button in grey box */}
-                    <AnimatePresence>
-                        {isHovered && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 20 }}
-                                className="px-3 py-1.5 bg-zinc-700 text-zinc-200 text-sm font-medium rounded-md shadow-lg"
-                            >
-                                Add Card
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-            )}
-        </div>
-    );
-};
-
-const TitlePage = ({ title, description, onTitleChange, onDescriptionChange }) => {
-    return (
-        <div className="binder-page bg-card rounded-xl p-6 md:p-8 h-full flex flex-col justify-center items-center text-center gap-6">
-            <input
-                type="text"
-                value={title}
-                onChange={(e) => onTitleChange(e.target.value)}
-                className="text-6xl font-bold bg-transparent border-none outline-none text-center w-full text-white placeholder-gray-600 focus:text-primary transition-colors"
-                placeholder="title"
-            />
-            <textarea
-                value={description}
-                onChange={(e) => onDescriptionChange(e.target.value)}
-                className="text-lg text-gray-400 bg-transparent border-none outline-none text-center w-full resize-none placeholder-gray-700 focus:text-gray-300 transition-colors"
-                placeholder="description"
-                rows={3}
-            />
-        </div>
-    );
-};
-
-const BinderPage = ({ slots, onSlotClick, onDeleteCard }) => {
-    return (
-        <div className="binder-page bg-card rounded-xl p-[10px] grid grid-cols-3 grid-rows-3 gap-[10px] h-full">
-            {slots.map((card, i) => (
-                <CardSlot
-                    key={i}
-                    card={card}
-                    onClick={() => !card && onSlotClick(i)}
-                    onDelete={() => card && onDeleteCard(i)}
-                />
-            ))}
-        </div>
-    );
-};
-
-export default function Home() {
-    const [sidebarOpen, setSidebarOpen] = useState(true);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [currentSpreadIndex, setCurrentSpreadIndex] = useState(0); // Which spread we're viewing
-    const [currentAddingSlot, setCurrentAddingSlot] = useState(null);
-    const [addingToLeftPage, setAddingToLeftPage] = useState(false); // Track which page is being added to
-    const [showPageCounter, setShowPageCounter] = useState(false); // Transient page counter visibility
-
-    // Show page counter transiently when spread changes
-    React.useEffect(() => {
-        setShowPageCounter(true);
-        const timer = setTimeout(() => {
-            setShowPageCounter(false);
-        }, 2000);
-        return () => clearTimeout(timer);
-    }, [currentSpreadIndex]);
-
-    // Title page data
-    const [titleData, setTitleData] = useState({
-        title: 'My Collection',
-        description: 'Start organizing your cards'
-    });
-
-    // Card pages - using sparse arrays to maintain slot positions
-    const [cardPages, setCardPages] = useState([
-        { id: 0, slots: Array(9).fill(null) }  // First card page
-    ]);
-
-    // Calculate what to show on left and right based on spread index
-    // Spread 0: Title (left) + Card Page 0 (right)
-    // Spread 1: Card Page 1 (left) + Card Page 2 (right)
-    // Spread 2: Card Page 3 (left) + Card Page 4 (right)
-    // etc.
-
-    const getLeftPage = () => {
-        if (currentSpreadIndex === 0) {
-            return { type: 'title', data: titleData };
-        }
-        const cardPageIndex = (currentSpreadIndex * 2) - 1;
-        return {
-            type: 'cards',
-            data: cardPages[cardPageIndex] || { id: `empty-${cardPageIndex}`, slots: Array(9).fill(null) },
-            index: cardPageIndex
-        };
-    };
-
-    const getRightPage = () => {
-        const cardPageIndex = currentSpreadIndex === 0 ? 0 : (currentSpreadIndex * 2);
-        return {
-            type: 'cards',
-            data: cardPages[cardPageIndex] || { id: `empty-${cardPageIndex}`, slots: Array(9).fill(null) },
-            index: cardPageIndex
-        };
-    };
-
-    const leftPage = getLeftPage();
-    const rightPage = getRightPage();
-
-    const handleSlotClick = (slotIndex, isLeftPage) => {
-        setCurrentAddingSlot(slotIndex);
-        setAddingToLeftPage(isLeftPage);
-        setIsModalOpen(true);
-    };
-
-    const handleAddCards = (newCards) => {
-        if (currentAddingSlot === null) return;
-
-        const targetPageIndex = addingToLeftPage ? leftPage.index : rightPage.index;
-
-        setCardPages(prevPages => {
-            // Ensure the page exists
-            while (prevPages.length <= targetPageIndex) {
-                prevPages.push({ id: Date.now() + prevPages.length, slots: Array(9).fill(null) });
+            if (currentUser) {
+                fetchBinders(currentUser.id);
+            } else {
+                setIsLoading(false);
             }
+        };
 
-            const updatedPages = [...prevPages];
-            const updatedSlots = [...updatedPages[targetPageIndex].slots];
+        checkUser();
 
-            // Add the first card to the clicked slot
-            if (newCards.length > 0 && updatedSlots[currentAddingSlot] === null) {
-                updatedSlots[currentAddingSlot] = newCards[0];
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setUser(session?.user || null);
+            if (session?.user) {
+                fetchBinders(session.user.id);
+            } else {
+                setBinders([]);
             }
-
-            updatedPages[targetPageIndex] = {
-                ...updatedPages[targetPageIndex],
-                slots: updatedSlots
-            };
-
-            return updatedPages;
         });
 
-        setCurrentAddingSlot(null);
-        setAddingToLeftPage(false);
-    };
+        return () => subscription.unsubscribe();
+    }, []);
 
-    const handleDeleteCard = (slotIndex, isLeftPage) => {
-        const targetPageIndex = isLeftPage ? leftPage.index : rightPage.index;
+    const fetchBinders = async (userId) => {
+        try {
+            const { data, error } = await supabase
+                .from('binders')
+                .select('*')
+                .eq('user_id', userId)
+                .order('updated_at', { ascending: false });
 
-        setCardPages(prevPages => {
-            const updatedPages = [...prevPages];
-            const updatedSlots = [...updatedPages[targetPageIndex].slots];
-            updatedSlots[slotIndex] = null;
-            updatedPages[targetPageIndex] = {
-                ...updatedPages[targetPageIndex],
-                slots: updatedSlots
-            };
-            return updatedPages;
-        });
-    };
-
-    const handleAddPage = () => {
-        const newPage = {
-            id: Date.now(),
-            slots: Array(9).fill(null)
-        };
-        setCardPages([...cardPages, newPage]);
-    };
-
-    const handleTitleChange = (newTitle) => {
-        setTitleData(prev => ({ ...prev, title: newTitle }));
-    };
-
-    const handleDescriptionChange = (newDescription) => {
-        setTitleData(prev => ({ ...prev, description: newDescription }));
-    };
-
-    const goToPreviousSpread = () => {
-        if (currentSpreadIndex > 0) {
-            setCurrentSpreadIndex(currentSpreadIndex - 1);
+            if (error) throw error;
+            setBinders(data || []);
+        } catch (error) {
+            console.error('Error fetching binders:', error);
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    const goToNextSpread = () => {
-        // Can always go to next spread
-        setCurrentSpreadIndex(currentSpreadIndex + 1);
+    const handleCreateBinder = async () => {
+        if (!newBinderTitle.trim()) return;
+        setIsCreating(true);
+
+        try {
+            const newBinder = {
+                user_id: user.id,
+                title: newBinderTitle,
+                description: newBinderDesc,
+                data: [{ id: 0, slots: Array(9).fill(null) }],
+                updated_at: new Date().toISOString()
+            };
+
+            const { data, error } = await supabase
+                .from('binders')
+                .insert([newBinder])
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            setShowCreateModal(false);
+            setNewBinderTitle('');
+            setNewBinderDesc('');
+            router.push(`/binder/${data.id}`);
+        } catch (error) {
+            console.error('Error creating binder:', error);
+            alert('Failed to create binder. Please try again.');
+        } finally {
+            setIsCreating(false);
+        }
     };
 
-    return (
-        <div className="min-h-screen bg-background text-foreground flex flex-col overflow-hidden">
-            <AddCardModal
-                isOpen={isModalOpen}
-                onClose={() => {
-                    setIsModalOpen(false);
-                    setCurrentAddingSlot(null);
-                }}
-                onAddCard={handleAddCards}
-            />
+    const handleSignOut = async () => {
+        await supabase.auth.signOut();
+        setBinders([]);
+    };
 
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+                <Loader2 size={32} className="animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-background text-foreground flex flex-col">
             {/* Header */}
             <header className="h-14 border-b border-border flex items-center justify-between px-4 bg-background/50 backdrop-blur-md sticky top-0 z-50">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1 hover:bg-secondary rounded">
-                        <Menu size={20} />
-                    </button>
-                    <span className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
-                        pkbinder
-                    </span>
+                    <Link href="/">
+                        <span className="font-bold text-xl tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400 cursor-pointer">
+                            pkbinder
+                        </span>
+                    </Link>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    {/* Search removed */}
-
-                    <Link href="/auth">
-                        <button className="h-9 px-4 rounded-full bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors shadow-[0_0_15px_-3px_var(--primary)]">
-                            Sign In
-                        </button>
-                    </Link>
+                <div className="flex items-center gap-3">
+                    {user ? (
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary-foreground font-bold text-xs border border-primary/30">
+                                {user.email?.[0].toUpperCase()}
+                            </div>
+                            <button onClick={handleSignOut} className="p-2 hover:bg-secondary rounded-full text-muted-foreground hover:text-foreground transition-colors" title="Sign Out">
+                                <LogOut size={18} />
+                            </button>
+                        </div>
+                    ) : (
+                        <Link href="/auth">
+                            <button className="h-9 px-4 rounded-full bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors shadow-[0_0_15px_-3px_var(--primary)]">
+                                Sign In
+                            </button>
+                        </Link>
+                    )}
                 </div>
             </header>
 
-            <div className="flex flex-1 overflow-hidden">
-                {/* Sidebar */}
-                <aside className={cn(
-                    "w-64 border-r border-border bg-card/30 p-4 space-y-6 hidden md:block transition-all duration-300",
-                    !sidebarOpen && "w-0 p-0 overflow-hidden border-none"
-                )}>
-                    <div className="space-y-1">
-                        <SidebarItem icon={Layout} label="My Binders" active />
-                        <SidebarItem icon={Grid} label="Collection" />
-                        <SidebarItem icon={Search} label="Browse Database" />
+            {/* Main Content */}
+            <main className="flex-1 container mx-auto p-4 md:p-8 max-w-5xl">
+                {!user ? (
+                    <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-6">
+                        <h1 className="text-4xl md:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-white to-white/50">
+                            Organize Your Collection
+                        </h1>
+                        <p className="text-xl text-muted-foreground max-w-lg">
+                            Create beautiful virtual binders for your Pokémon cards. Track, organize, and share your collection.
+                        </p>
+                        <Link href="/auth">
+                            <button className="h-12 px-8 rounded-full bg-primary text-white text-lg font-medium hover:bg-primary/90 transition-all hover:scale-105 shadow-[0_0_20px_-5px_var(--primary)]">
+                                Get Started
+                            </button>
+                        </Link>
                     </div>
-
-                    <div>
-                        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-3">Binder Settings</h3>
-                        <div className="space-y-1">
-                            <SidebarItem icon={Settings} label="Customize" />
-                            <SidebarItem icon={Share2} label="Share Binder" />
-                            <SidebarItem icon={Filter} label="Sort & Filter" />
-                        </div>
-                    </div>
-                </aside>
-
-                {/* Main Content - Two Page Spread */}
-                <main className="flex-1 overflow-auto p-4 md:p-8 flex justify-center items-center bg-black/50">
-                    <div className="w-full max-w-7xl flex gap-6 items-center h-[90vh] relative">
-                        {/* Navigation Arrow - Left (outside binder) */}
-                        <button
-                            onClick={goToPreviousSpread}
-                            disabled={currentSpreadIndex === 0}
-                            className={cn(
-                                "p-3 rounded-full bg-zinc-800 hover:bg-zinc-700 transition-colors z-50",
-                                currentSpreadIndex === 0 && "opacity-50 cursor-default hover:bg-zinc-800"
-                            )}
-                        >
-                            <ChevronLeft size={24} />
-                        </button>
-
-                        <div className="flex-1 flex justify-center gap-4 h-full relative perspective-1000">
-                            {/* Left Page */}
-                            <div className="flex-none w-[600px] aspect-[100/136] relative z-10">
-                                <div className="h-full">
-                                    {leftPage.type === 'title' ? (
-                                        <TitlePage
-                                            title={leftPage.data.title}
-                                            description={leftPage.data.description}
-                                            onTitleChange={handleTitleChange}
-                                            onDescriptionChange={handleDescriptionChange}
-                                        />
-                                    ) : (
-                                        <BinderPage
-                                            slots={leftPage.data.slots}
-                                            onSlotClick={(slotIndex) => handleSlotClick(slotIndex, true)}
-                                            onDeleteCard={(slotIndex) => handleDeleteCard(slotIndex, true)}
-                                        />
+                ) : (
+                    <div className="space-y-8">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-2xl font-bold flex items-center gap-2">
+                                <Layout className="text-primary" />
+                                My Binders
+                            </h2>
+                            <div className="flex items-center gap-4">
+                                <span className="text-sm font-medium px-3 py-1 rounded-full bg-secondary text-secondary-foreground border border-white/5">
+                                    {binders.length} / 2 Binders
+                                </span>
+                                <button
+                                    onClick={() => setShowCreateModal(true)}
+                                    disabled={binders.length >= 2}
+                                    className={cn(
+                                        "h-9 px-4 rounded-full flex items-center gap-2 text-sm font-medium transition-all",
+                                        binders.length >= 2
+                                            ? "bg-secondary text-muted-foreground cursor-not-allowed opacity-50"
+                                            : "bg-primary text-white hover:bg-primary/90 shadow-lg hover:shadow-primary/25"
                                     )}
-                                </div>
-                            </div>
-
-                            {/* Right Page */}
-                            <div className="flex-none w-[600px] aspect-[100/136] relative z-10">
-                                <div className="h-full">
-                                    <BinderPage
-                                        slots={rightPage.data.slots}
-                                        onSlotClick={(slotIndex) => handleSlotClick(slotIndex, false)}
-                                        onDeleteCard={(slotIndex) => handleDeleteCard(slotIndex, false)}
-                                    />
-                                </div>
+                                >
+                                    <Plus size={16} />
+                                    New Binder
+                                </button>
                             </div>
                         </div>
 
-                        {/* Navigation Arrow - Right OR Add Page Button */}
-                        {(() => {
-                            // Calculate total spreads needed
-                            // 1 title page + cardPages
-                            // Each spread holds 2 pages (except title is 1 page)
-                            // Spread 0: Title | Page 0
-                            // Spread 1: Page 1 | Page 2
-                            // Spread 2: Page 3 | Page 4
-                            // Last spread index calculation:
-                            // Total count = 1 (title) + cardPages.length
-                            // Max capacity per spread = 2
-                            // But title counts as 1 slot effectively in Spread 0's context?
-                            // Actually, let's use the logic defined in getRightPage:
-                            // Spread 0: Right page is cardPages[0]
-                            // Spread 1: Right page is cardPages[2]
-                            // Spread k: Right page is cardPages[2k]  <-- Wait, logic above was:
-                            // Spread 0: Right = 0
-                            // Spread 1: Right = 2
-                            // Spread 2: Right = 4
-                            // So if we are at spread k, we are showing card page 2k on the right.
-                            // If cardPages has length N.
-                            // The last separate card page index is N-1.
-                            // If the right page of the current spread (2k) is < N-1, there are more pages.
-                            // Or simpler: can we go to spread k+1?
-                            // Spread k+1 would show card page (2(k+1)-1) on left and 2(k+1) on right.
-                            // i.e. 2k+1 (left) and 2k+2 (right).
-                            // Does page 2k+1 exist? (index 2k+1 < cardPages.length)
-
-                            // Let's look at next spread:
-                            // Next spread index = currentSpreadIndex + 1
-                            // Left page of next spread would be index: (currentSpreadIndex + 1) * 2 - 1
-                            // i.e. 2 * currentSpreadIndex + 1.
-                            // If this index exists in cardPages, then next spread exists.
-
-                            const nextSpreadLeftPageIndex = 2 * currentSpreadIndex + 1;
-                            const hasNextSpread = nextSpreadLeftPageIndex < cardPages.length;
-
-                            if (hasNextSpread) {
-                                return (
-                                    <button
-                                        onClick={goToNextSpread}
-                                        className="p-3 rounded-full bg-zinc-800 hover:bg-zinc-700 transition-colors z-50 text-white shadow-lg border border-zinc-700"
-                                    >
-                                        <ChevronRight size={24} />
-                                    </button>
-                                );
-                            } else {
-                                return (
-                                    <button
-                                        onClick={handleAddPage}
-                                        className="p-3 rounded-full bg-primary hover:bg-primary/90 transition-colors shadow-lg group z-50"
-                                        title="Add New Page"
-                                    >
-                                        <Plus size={24} className="group-hover:rotate-90 transition-transform duration-300" />
-                                    </button>
-                                );
-                            }
-                        })()}
-
-                        {/* Page Counter - Transient */}
-                        <AnimatePresence mode="wait">
-                            {showPageCounter && (
-                                <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    transition={{ duration: 0.3 }}
-                                    className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-zinc-800/80 backdrop-blur-md px-3 py-1 rounded-full text-xs font-medium text-white/50 shadow-sm border border-white/5 pointer-events-none z-50 select-none"
+                        {binders.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 border border-dashed border-border rounded-xl bg-card/10">
+                                <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mb-4">
+                                    <Book size={24} className="text-muted-foreground" />
+                                </div>
+                                <h3 className="text-lg font-medium mb-1">No binders yet</h3>
+                                <p className="text-muted-foreground mb-6">Create your first binder to start collecting.</p>
+                                <button
+                                    onClick={() => setShowCreateModal(true)}
+                                    className="h-9 px-4 rounded-full bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors"
                                 >
-                                    {currentSpreadIndex + 1} / {Math.max(1, Math.ceil((cardPages.length + 1) / 2))}
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                                    Create Binder
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {binders.map((binder) => (
+                                    <Link key={binder.id} href={`/binder/${binder.id}`}>
+                                        <motion.div
+                                            whileHover={{ y: -4, scale: 1.01 }}
+                                            className="group relative bg-card hover:bg-card/80 border border-border rounded-xl p-6 transition-all shadow-sm hover:shadow-md cursor-pointer overflow-hidden"
+                                        >
+                                            <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-2 group-hover:translate-x-0">
+                                                <ChevronRight className="text-primary" />
+                                            </div>
+                                            <div className="space-y-4">
+                                                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                                                    <Book className="text-primary" size={24} />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-xl font-bold mb-1 group-hover:text-primary transition-colors line-clamp-1">{binder.title || 'Untitled Binder'}</h3>
+                                                    <p className="text-sm text-muted-foreground line-clamp-2 h-10">
+                                                        {binder.description || 'No description'}
+                                                    </p>
+                                                </div>
+                                                <div className="pt-4 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
+                                                    <span>Last updated</span>
+                                                    <span>{new Date(binder.updated_at).toLocaleDateString()}</span>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
                     </div>
-                </main>
-            </div>
+                )}
+            </main>
+
+            {/* Create Binder Modal */}
+            <AnimatePresence>
+                {showCreateModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden"
+                        >
+                            <div className="p-6 space-y-6">
+                                <div>
+                                    <h3 className="text-xl font-bold mb-2">Create New Binder</h3>
+                                    <p className="text-sm text-muted-foreground">Give your binder a title and description to get started.</p>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Title</label>
+                                        <input
+                                            type="text"
+                                            value={newBinderTitle}
+                                            onChange={(e) => setNewBinderTitle(e.target.value)}
+                                            placeholder="e.g., Rare Holos"
+                                            className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-primary/50 transition-colors"
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Description</label>
+                                        <textarea
+                                            value={newBinderDesc}
+                                            onChange={(e) => setNewBinderDesc(e.target.value)}
+                                            placeholder="What's in this binder?"
+                                            rows={3}
+                                            className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-zinc-600 focus:outline-none focus:border-primary/50 transition-colors resize-none"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-3 pt-2">
+                                    <button
+                                        onClick={() => setShowCreateModal(false)}
+                                        className="flex-1 h-10 rounded-lg bg-secondary text-secondary-foreground font-medium hover:bg-secondary/80 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleCreateBinder}
+                                        disabled={!newBinderTitle.trim() || isCreating}
+                                        className="flex-1 h-10 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    >
+                                        {isCreating && <Loader2 size={16} className="animate-spin" />}
+                                        Create Binder
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

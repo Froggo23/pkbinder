@@ -1,0 +1,4 @@
+{
+  "/binder/[id]/page": "app/binder/[id]/page.js",
+  "/page": "app/page.js"
+}

@@ -1,0 +1,106 @@
+[00:00:00.947] Server  LOG     ✓ Ready in 684ms
+[00:28:09.974] Server  ERROR   ⨯ ./src/app/globals.css:1600:8
+Parsing CSS source code failed
+  1598 | }
+  1599 |
+> 1600 | @import './styles/holo-card.css';
+       |        ^
+  1601 |
+  1602 |
+  1603 | :root {
+
+@import rules must precede all rules aside from @charset and @layer statements
+
+Import trace:
+  Client Component Browser:
+    ./src/app/globals.css [Client Component Browser]
+    ./src/app/layout.js [Server Component]
+
+
+[00:28:10.475] Server  ERROR   ⨯ ./src/app/globals.css:1600:8
+Parsing CSS source code failed
+  1598 | }
+  1599 |
+> 1600 | @import './styles/holo-card.css';
+       |        ^
+  1601 |
+  1602 |
+  1603 | :root {
+
+@import rules must precede all rules aside from @charset and @layer statements
+
+Import trace:
+  Client Component Browser:
+    ./src/app/globals.css [Client Component Browser]
+    ./src/app/layout.js [Server Component]
+
+
+[00:28:10.711] Browser ERROR   uncaughtError: Error: ./src/app/globals.css:1600:8
+Parsing CSS source code failed
+  1598 | }
+  1599 |
+> 1600 | @import './styles/holo-card.css';
+       |        ^
+  1601 |
+  1602 |
+  1603 | :root {
+
+@import rules must precede all rules aside from @charset and @layer statements
+
+Import trace:
+  Client Component Browser:
+    ./src/app/globals.css [Client Component Browser]
+    ./src/app/layout.js [Server Component]
+
+
+[00:28:10.928] Browser ERROR   ./src/app/globals.css:1600:8
+Parsing CSS source code failed
+  1598 | }
+  1599 |
+> 1600 | @import './styles/holo-card.css';
+       |        ^
+  1601 |
+  1602 |
+  1603 | :root {
+
+@import rules must precede all rules aside from @charset and @layer statements
+
+Import trace:
+  Client Component Browser:
+    ./src/app/globals.css [Client Component Browser]
+    ./src/app/layout.js [Server Component]
+[00:28:10.928] Browser ERROR   ./src/app/globals.css:1600:8
+Parsing CSS source code failed
+  1598 | }
+  1599 |
+> 1600 | @import './styles/holo-card.css';
+       |        ^
+  1601 |
+  1602 |
+  1603 | :root {
+
+@import rules must precede all rules aside from @charset and @layer statements
+
+Import trace:
+  Client Component Browser:
+    ./src/app/globals.css [Client Component Browser]
+    ./src/app/layout.js [Server Component]
+[00:28:11.043] Browser ERROR   ./src/app/globals.css:1600:8
+Parsing CSS source code failed
+  1598 | }
+  1599 |
+> 1600 | @import './styles/holo-card.css';
+       |        ^
+  1601 |
+  1602 |
+  1603 | :root {
+
+@import rules must precede all rules aside from @charset and @layer statements
+
+Import trace:
+  Client Component Browser:
+    ./src/app/globals.css [Client Component Browser]
+    ./src/app/layout.js [Server Component]
+[00:29:09.478] Server  LOG     ✓ Compiled in 180ms
+[00:29:10.109] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:32:06.111] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold

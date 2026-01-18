@@ -1,0 +1,165 @@
+/* [project]/src/app/styles/holo-card.css [app-client] (css) */
+.holo-card {
+  --grain: url("/img/grain.webp");
+  --glitter: url("/img/glitter.png");
+  --glittersize: 25%;
+  --space: 5%;
+  --angle: 133deg;
+  --imgsize: cover;
+  --red: #f80e35;
+  --yellow: #eedf10;
+  --green: #21e985;
+  --blue: #0dbde9;
+  --violet: #c929f1;
+  --clip: inset(9.85% 8% 52.85% 8%);
+  --clip-invert: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%, 0 47.15%, 91.5% 47.15%, 91.5% 9.85%, 8% 9.85%, 8% 47.15%, 0 50%);
+  --clip-stage: polygon(91.5% 9.85%, 57% 9.85%, 54% 12%, 17% 12%, 16% 14%, 12% 16%, 8% 16%, 8% 47.15%, 92% 47.15%);
+  --clip-stage-invert: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%, 0 47.15%, 91.5% 47.15%, 91.5% 9.85%, 57% 9.85%, 54% 12%, 17% 12%, 16% 14%, 12% 16%, 8% 16%, 8% 47.15%, 0 50%);
+  --clip-trainer: inset(14.5% 8.5% 48.2% 8.5%);
+  --clip-borders: inset(2.8% 4% round 2.55% / 1.5%);
+  border-radius: var(--radius);
+  will-change: transform, visibility;
+  transform-style: preserve-3d;
+  transform: translate3d(0, 0, .1px);
+}
+
+.holo-card__shine, .holo-card__glare {
+  will-change: transform, opacity, background-image, background-size, background-position, background-blend-mode, filter;
+}
+
+.holo-card__translater, .holo-card__rotator {
+  perspective: 600px;
+  transform-origin: center;
+  will-change: transform;
+  display: grid;
+}
+
+.holo-card__translater {
+  width: auto;
+  height: 100%;
+  position: relative;
+}
+
+.holo-card__rotator {
+  transform: rotateY(var(--rotate-y)) rotateX(var(--rotate-x));
+  transform-style: preserve-3d;
+  pointer-events: auto;
+  background: none;
+  border: none;
+  border-radius: 14px;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  display: block;
+  position: relative;
+}
+
+.holo-card__front img {
+  -webkit-user-drag: none;
+}
+
+.holo-card__front {
+  opacity: 1;
+  backface-visibility: hidden;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  background-color: #1a1a1a;
+  border-radius: 4.5% / 3.5%;
+  grid-template-areas: "front";
+  transition: opacity .33s ease-out;
+  display: grid;
+  overflow: hidden;
+  transform: translate3d(0, 0, .1px);
+}
+
+.holo-card__front img {
+  -o-object-fit: cover;
+  object-fit: cover;
+  border-radius: 4.5% / 3.5%;
+  grid-area: front;
+  width: 100%;
+  height: 100%;
+}
+
+.holo-card .holo-card__shine {
+  z-index: 2;
+  pointer-events: none;
+  background: none;
+  border-radius: 4.5% / 3.5%;
+  grid-area: front;
+  transform: translateZ(1px);
+}
+
+.holo-card .holo-card__glare {
+  z-index: 3;
+  pointer-events: none;
+  background: none;
+  border-radius: 4.5% / 3.5%;
+  grid-area: front;
+  transform: translateZ(1px);
+}
+
+.holo-card[data-rarity="rare holo"] .holo-card__shine {
+  --scanlines-space: 1px;
+  --scanlines-light: #666;
+  --scanlines-dark: black;
+  --bars: 3%;
+  --bar-color: #b3b3b3;
+  --bar-bg: #000;
+  background-image: repeating-linear-gradient(110deg, var(--violet), var(--blue), var(--green), var(--yellow), var(--red), var(--violet), var(--blue), var(--green), var(--yellow), var(--red), var(--violet), var(--blue), var(--green), var(--yellow), var(--red)), repeating-linear-gradient(90deg, var(--scanlines-dark) calc(var(--scanlines-space) * 0), var(--scanlines-dark) calc(var(--scanlines-space) * 2), var(--scanlines-light) calc(var(--scanlines-space) * 2), var(--scanlines-light) calc(var(--scanlines-space) * 4));
+  background-position: calc(((50% - var(--background-x)) * 2.6)  + 50%) calc(((50% - var(--background-y)) * 3.5)  + 50%), center center;
+  background-blend-mode: overlay;
+  filter: brightness(1.1) contrast(1.1) saturate(1.2);
+  mix-blend-mode: color-dodge;
+  opacity: var(--card-opacity);
+  background-size: 400% 400%, cover;
+}
+
+.holo-card[data-rarity="rare holo"] .holo-card__shine:before {
+  content: "";
+  z-index: 2;
+  background-image: repeating-linear-gradient(90deg, var(--bar-bg) calc(var(--bars) * 2), var(--bar-color) calc(var(--bars) * 3), var(--bar-bg) calc(var(--bars) * 3.5), var(--bar-color) calc(var(--bars) * 4), var(--bar-bg) calc(var(--bars) * 5), var(--bar-bg) calc(var(--bars) * 14)), repeating-linear-gradient(90deg, var(--bar-bg) calc(var(--bars) * 2), var(--bar-color) calc(var(--bars) * 3), var(--bar-bg) calc(var(--bars) * 3.5), var(--bar-color) calc(var(--bars) * 4), var(--bar-bg) calc(var(--bars) * 5), var(--bar-bg) calc(var(--bars) * 10));
+  background-position: calc((((50% - var(--background-x)) * 1.65)  + 50%)  + (var(--background-y) * .5)) var(--background-x), calc((((50% - var(--background-x)) * -.9)  + 50%)  - (var(--background-y) * .75)) var(--background-y);
+  background-blend-mode: screen;
+  filter: brightness(1.15) contrast(1.1);
+  mix-blend-mode: hard-light;
+  background-size: 200% 200%, 200% 200%;
+  position: absolute;
+  inset: 0;
+}
+
+.holo-card[data-rarity="rare holo"] .holo-card__shine:after {
+  content: "";
+  z-index: 3;
+  background-image: radial-gradient(farthest-corner circle at var(--pointer-x) var(--pointer-y), #e6e6e6cc 0%, #c7c7c71a 25%, #000 90%);
+  mix-blend-mode: luminosity;
+  filter: brightness(.6) contrast(4);
+  background-position: center;
+  background-size: cover;
+  position: absolute;
+  inset: 0;
+}
+
+.holo-card[data-rarity="rare holo"] .holo-card__glare {
+  opacity: calc(var(--card-opacity) * .8);
+  filter: brightness(.8) contrast(1.5);
+  mix-blend-mode: overlay;
+}
+
+.holo-card[data-rarity="rare holo"] .holo-card__glare:after {
+  content: "";
+  background-image: radial-gradient(farthest-corner circle at var(--pointer-x) var(--pointer-y), #e6ffff 5%, #63636340 55%, #0000005c 110%);
+  mix-blend-mode: overlay;
+  filter: brightness(.6) contrast(3);
+  position: absolute;
+  inset: 0;
+}
+
+.holo-card:not([data-rarity="rare holo"]) .holo-card__glare {
+  opacity: var(--card-opacity);
+  background-image: radial-gradient(farthest-corner circle at var(--pointer-x) var(--pointer-y), #fffc 10%, #ffffffa6 20%, #00000080 90%);
+  mix-blend-mode: overlay;
+}
+
+/*# sourceMappingURL=src_app_styles_holo-card_css_bad6b30c._.single.css.map*/

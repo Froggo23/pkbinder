@@ -7,8 +7,6 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import AddCardModal from '@/components/AddCardModal';
-import HoloCard from '@/components/HoloCard';
-import InspectModal from '@/components/InspectModal';
 
 // --- Main Page Component ---
 
@@ -28,9 +26,6 @@ export default function Binder({ params }) {
     const [saveStatus, setSaveStatus] = useState(null);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-
-    // Inspection State
-    const [inspectedCard, setInspectedCard] = useState(null);
 
     // Binder Data State
     const [titleData, setTitleData] = useState({ title: '', description: '' });
@@ -60,16 +55,10 @@ export default function Binder({ params }) {
     const leftPage = getLeftPage();
     const rightPage = getRightPage();
 
-    function handleSlotClick(slotIndex, isLeftPage, card) {
-        if (card) {
-            // If card exists, inspect it
-            setInspectedCard(card);
-        } else {
-            // If empty, add card
-            setCurrentAddingSlot(slotIndex);
-            setAddingToLeftPage(isLeftPage);
-            setIsModalOpen(true);
-        }
+    function handleSlotClick(slotIndex, isLeftPage) {
+        setCurrentAddingSlot(slotIndex);
+        setAddingToLeftPage(isLeftPage);
+        setIsModalOpen(true);
     }
 
     function handleAddCards(newCards) {
@@ -246,12 +235,6 @@ export default function Binder({ params }) {
                 onAddCard={handleAddCards}
             />
 
-            <InspectModal
-                card={inspectedCard}
-                isOpen={!!inspectedCard}
-                onClose={() => setInspectedCard(null)}
-            />
-
             <header className="h-14 border-b border-border flex items-center justify-between px-4 bg-background/50 backdrop-blur-md sticky top-0 z-50">
                 <div className="flex items-center gap-4">
                     <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1 hover:bg-secondary rounded">
@@ -321,11 +304,11 @@ export default function Binder({ params }) {
                                 {leftPage.type === 'title' ? (
                                     <TitlePage title={leftPage.data.title} description={leftPage.data.description} onTitleChange={handleTitleChange} onDescriptionChange={handleDescriptionChange} />
                                 ) : (
-                                    <BinderPage slots={leftPage.data.slots} onSlotClick={(slotIndex, card) => handleSlotClick(slotIndex, true, card)} onDeleteCard={(slotIndex) => handleDeleteCard(slotIndex, true)} />
+                                    <BinderPage slots={leftPage.data.slots} onSlotClick={(slotIndex) => handleSlotClick(slotIndex, true)} onDeleteCard={(slotIndex) => handleDeleteCard(slotIndex, true)} />
                                 )}
                             </div>
                             <div className="flex-none w-[600px] aspect-[100/136] relative z-10">
-                                <BinderPage slots={rightPage.data.slots} onSlotClick={(slotIndex, card) => handleSlotClick(slotIndex, false, card)} onDeleteCard={(slotIndex) => handleDeleteCard(slotIndex, false)} />
+                                <BinderPage slots={rightPage.data.slots} onSlotClick={(slotIndex) => handleSlotClick(slotIndex, false)} onDeleteCard={(slotIndex) => handleDeleteCard(slotIndex, false)} />
                             </div>
                         </div>
                         {(() => {
@@ -369,15 +352,8 @@ function CardSlot({ card, onClick, onDelete }) {
         <div onMouseEnter={() => card ? setShowDelete(true) : setIsHovered(true)} onMouseLeave={() => { setShowDelete(false); setIsHovered(false); }} onClick={onClick} className={cn("h-full w-full rounded-xl overflow-hidden relative group transition-all duration-300", !card && "card-slot-empty cursor-pointer bg-zinc-800/30", !card && isHovered && "shadow-[0_0_12px_rgba(99,102,241,0.5)]")}>
             {card ? (
                 <motion.div layoutId={`card-${card.id}`} className="w-full h-full relative" whileHover={{ scale: 1.05, zIndex: 10 }}>
-                    <HoloCard
-                        card={card}
-                        img={card.image}
-                        name={card.name}
-                        className="w-full h-full p-1" // Add padding directly to match previous style
-                        rarity={card.rarity || "rare holo"} // Fallback or use data if available
-                        interactive={false} // Ensure static in binder
-                    />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/0 transition-colors" /> {/* Removed pointer events to allow clicks to pass to div */}
+                    <img src={card.image} alt={card.name} className="w-full h-full object-contain p-1" loading="lazy" />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                     <AnimatePresence>
                         {showDelete && (
                             <motion.button initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} onClick={(e) => { e.stopPropagation(); onDelete(); }} className="absolute top-2 right-2 bg-red-600 hover:bg-red-500 text-white rounded-full p-1.5 shadow-lg z-20 transition-colors">
@@ -408,7 +384,7 @@ function BinderPage({ slots, onSlotClick, onDeleteCard }) {
     return (
         <div className="binder-page bg-card rounded-xl p-1.5 grid grid-cols-3 grid-rows-3 gap-1.5 h-full">
             {slots.map((card, i) => (
-                <CardSlot key={i} card={card} onClick={() => onSlotClick(i, card)} onDelete={() => card && onDeleteCard(i)} />
+                <CardSlot key={i} card={card} onClick={() => !card && onSlotClick(i)} onDelete={() => card && onDeleteCard(i)} />
             ))}
         </div>
     );

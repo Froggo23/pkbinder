@@ -1,0 +1,28 @@
+/* Main entry point for Pokemon Card Holo Effects */
+
+/* Base Styles */
+@import "./cards/base.css";
+@import "./cards/cards.css";
+
+/* Rarity Specific Styles */
+@import "./cards/basic.css";
+@import "./cards/reverse-holo.css";
+@import "./cards/regular-holo.css";
+@import "./cards/cosmos-holo.css";
+@import "./cards/amazing-rare.css";
+@import "./cards/radiant-holo.css";
+@import "./cards/v-regular.css";
+@import "./cards/v-full-art.css";
+@import "./cards/v-max.css";
+@import "./cards/v-star.css";
+@import "./cards/trainer-full-art.css";
+@import "./cards/rainbow-holo.css";
+@import "./cards/rainbow-alt.css";
+@import "./cards/secret-rare.css";
+@import "./cards/shiny-rare.css";
+@import "./cards/shiny-v.css";
+@import "./cards/shiny-vmax.css";
+@import "./cards/trainer-gallery-holo.css";
+@import "./cards/trainer-gallery-v-regular.css";
+@import "./cards/trainer-gallery-v-max.css";
+@import "./cards/trainer-gallery-secret-rare.css";

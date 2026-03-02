@@ -2,7 +2,11 @@ import TCGdex, { Query } from '@tcgdex/sdk';
 
 const tcgdex = new TCGdex('en');
 
-export async function searchCards(query = '', page = 1, pageSize = 20, filters = {}) {
+/**
+ * Fetch cards from TCGDex API (no caching - pure API call)
+ * This is used by both client and server
+ */
+export async function searchCardsFromAPI(query = '', page = 1, pageSize = 20, filters = {}) {
     try {
         console.log(`[TCGDex] Searching: "${query}" Page: ${page} Filters:`, filters);
 
@@ -39,7 +43,6 @@ export async function searchCards(query = '', page = 1, pageSize = 20, filters =
         }
 
         // 4. Pagination & Image Buffer
-        // Fetch more cards than required to ensure we can filter out those without images
         const fetchLimit = pageSize * 2;
         q.paginate(page, fetchLimit);
 
@@ -50,7 +53,7 @@ export async function searchCards(query = '', page = 1, pageSize = 20, filters =
             return { data: [], page, pageSize, count: 0, totalCount: 0, hasMore: false };
         }
 
-        // Filter out cards without images from the resume items
+        // Filter out cards without images
         const resumesWithImages = listResults.filter(resume => resume.image);
         const targetResumes = resumesWithImages.slice(0, pageSize);
 
@@ -103,6 +106,39 @@ export async function searchCards(query = '', page = 1, pageSize = 20, filters =
         console.error("[TCGDex] Error:", error);
         return { data: [], error: error.message };
     }
+}
+
+/**
+ * Client-side function that calls the cached API route
+ */
+export async function searchCards(query = '', page = 1, pageSize = 20, filters = {}) {
+    // On client side, use our cached API endpoint
+    if (typeof window !== 'undefined') {
+        try {
+            const params = new URLSearchParams({
+                q: query,
+                page: page.toString(),
+                pageSize: pageSize.toString()
+            });
+
+            // Add filters if they exist
+            if (filters.types) params.set('types', filters.types);
+            if (filters.rarity) params.set('rarity', filters.rarity);
+            if (filters.setName) params.set('setName', filters.setName);
+            if (filters.orderBy) params.set('orderBy', filters.orderBy);
+
+            const response = await fetch(`/api/cards/search?${params.toString()}`);
+            if (!response.ok) throw new Error('API request failed');
+            return await response.json();
+        } catch (error) {
+            console.error("[Search] API route failed:", error);
+            // Fallback to direct SDK call
+            return searchCardsFromAPI(query, page, pageSize, filters);
+        }
+    }
+
+    // On server side, call directly (no caching here - caching is in the API route)
+    return searchCardsFromAPI(query, page, pageSize, filters);
 }
 
 export async function getCardPrice(cardId) {
